@@ -16,29 +16,85 @@
 # %m => shortname host
 # %(?..) => prompt conditional - %(condition.true.false)
 
-
-# turns seconds into human readable time
-# 165392 => 1d 21h 56m 32s
-prompt_pure_human_time() {
-	local tmp=$1
-	local days=$(( tmp / 60 / 60 / 24 ))
-	local hours=$(( tmp / 60 / 60 % 24 ))
-	local minutes=$(( tmp / 60 % 60 ))
-	local seconds=$(( tmp % 60 ))
-	(( $days > 0 )) && echo -n "${days}d "
-	(( $hours > 0 )) && echo -n "${hours}h "
-	(( $minutes > 0 )) && echo -n "${minutes}m "
-	echo "${seconds}s"
-}
-
 # fastest possible way to check if repo is dirty
 prompt_pure_git_dirty() {
 	# check if we're in a git repo
 	command git rev-parse --is-inside-work-tree &>/dev/null || return
 	# check if it's dirty
-	command git diff --quiet --ignore-submodules HEAD &>/dev/null
+	command git diff --quiet HEAD &>/dev/null
 
-	(($? == 1)) && echo '*'
+    if [[ "$?" == 1 ]]; then
+		echo '%F{red} ✗%F{yellow})'
+    else
+		echo '%F{green} ✔%F{yellow})'
+    fi
+}
+
+prompt_pure_git_status() {
+	INDEX=$(command git status --porcelain -b 2> /dev/null)
+	STATUS=""
+
+	# untracked
+	if $(echo "$INDEX" | grep -E '^\?\? ' &> /dev/null); then
+		STATUS="%F{cyan}✭$STATUS"
+	fi
+	
+	# added
+	if $(echo "$INDEX" | grep '^A  ' &> /dev/null); then
+		STATUS="%F{green}✚$STATUS"
+	elif $(echo "$INDEX" | grep '^M  ' &> /dev/null); then
+		STATUS="%F{green}✚$STATUS"
+	fi
+
+	# modified
+	if $(echo "$INDEX" | grep '^ M ' &> /dev/null); then
+		STATUS="%F{blue}✹$STATUS"
+	elif $(echo "$INDEX" | grep '^AM ' &> /dev/null); then
+		STATUS="%F{blue}✹$STATUS"
+	elif $(echo "$INDEX" | grep '^ T ' &> /dev/null); then
+		STATUS="%F{blue}✹$STATUS"
+	fi
+
+	# renamed
+	if $(echo "$INDEX" | grep '^R  ' &> /dev/null); then
+		STATUS="%F{magenta}➜$STATUS"
+	fi
+
+	# deleted
+	if $(echo "$INDEX" | grep '^ D ' &> /dev/null); then
+		STATUS="%F{red}✖$STATUS"
+	elif $(echo "$INDEX" | grep '^D  ' &> /dev/null); then
+		STATUS="%F{red}✖$STATUS"
+	elif $(echo "$INDEX" | grep '^AD ' &> /dev/null); then
+		STATUS="%F{red}✖$STATUS"
+	fi
+	
+	# stashed
+	# if $(command git rev-parse --verify refs/stash >/dev/null 2>&1); then
+	# 	STATUS="%F{grey}∴$STATUS"
+	# fi
+	
+	# unmerged
+	if $(echo "$INDEX" | grep '^UU ' &> /dev/null); then
+		STATUS="%F{yellow}═$STATUS"
+	fi
+
+	# ahead
+	if $(echo "$INDEX" | grep '^## .*ahead' &> /dev/null); then
+		STATUS="%F{blue}↑$STATUS"
+	fi
+
+	# behind
+	if $(echo "$INDEX" | grep '^## .*behind' &> /dev/null); then
+		STATUS="%F{blue}↓$STATUS"
+	fi
+
+	# diverged
+	if $(echo "$INDEX" | grep '^## .*diverged' &> /dev/null); then
+		STATUS="%F{blue}↕$STATUS"
+	fi
+
+	echo $STATUS
 }
 
 # displays the exec time of the last command if set threshold was exceeded
@@ -46,7 +102,7 @@ prompt_pure_cmd_exec_time() {
 	local stop=$(date +%s)
 	local start=${cmd_timestamp:-$stop}
 	integer elapsed=$stop-$start
-	(($elapsed > ${PURE_CMD_MAX_EXEC_TIME:=5})) && prompt_pure_human_time $elapsed
+	(($elapsed > ${PURE_CMD_MAX_EXEC_TIME:=5})) && echo ${elapsed}s
 }
 
 prompt_pure_preexec() {
@@ -70,7 +126,7 @@ prompt_pure_precmd() {
 	# git info
 	vcs_info
 
-	local prompt_pure_preprompt='\n%F{blue}%~%F{242}$vcs_info_msg_0_`prompt_pure_git_dirty` $prompt_pure_username%f %F{yellow}`prompt_pure_cmd_exec_time`%f'
+	local prompt_pure_preprompt='\n%F{blue}%~%F{yellow}$vcs_info_msg_0_`prompt_pure_git_dirty` `prompt_pure_git_status` $prompt_pure_username%f %F{yellow}`prompt_pure_cmd_exec_time`%f'
 	print -P $prompt_pure_preprompt
 
 	# check async if there is anything to pull
@@ -105,8 +161,8 @@ prompt_pure_setup() {
 	add-zsh-hook preexec prompt_pure_preexec
 
 	zstyle ':vcs_info:*' enable git
-	zstyle ':vcs_info:git*' formats ' %b'
-	zstyle ':vcs_info:git*' actionformats ' %b|%a'
+	zstyle ':vcs_info:git*' formats ' (%b'
+	zstyle ':vcs_info:git*' actionformats ' (%b|%a'
 
 	# show username@host if logged in through SSH
 	[[ "$SSH_CONNECTION" != '' ]] && prompt_pure_username='%n@%m '
