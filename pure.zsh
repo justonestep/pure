@@ -38,7 +38,7 @@ prompt_pure_git_status() {
 	if $(echo "$INDEX" | grep -E '^\?\? ' &> /dev/null); then
 		STATUS="%F{cyan}✭$STATUS"
 	fi
-	
+
 	# added
 	if $(echo "$INDEX" | grep '^A  ' &> /dev/null); then
 		STATUS="%F{green}✚$STATUS"
@@ -68,12 +68,12 @@ prompt_pure_git_status() {
 	elif $(echo "$INDEX" | grep '^AD ' &> /dev/null); then
 		STATUS="%F{red}✖$STATUS"
 	fi
-	
+
 	# stashed
 	# if $(command git rev-parse --verify refs/stash >/dev/null 2>&1); then
 	# 	STATUS="%F{grey}∴$STATUS"
 	# fi
-	
+
 	# unmerged
 	if $(echo "$INDEX" | grep '^UU ' &> /dev/null); then
 		STATUS="%F{yellow}═$STATUS"
@@ -139,7 +139,8 @@ prompt_pure_precmd() {
 		command git rev-parse --abbrev-ref @'{u}' &>/dev/null &&
 		(( $(command git rev-list --right-only --count HEAD...@'{u}' 2>/dev/null) > 0 )) &&
 		# some crazy ansi magic to inject the symbol into the previous line
-		print -Pn "\e7\e[A\e[1G\e[`prompt_pure_string_length $prompt_pure_preprompt`C%F{cyan}⇣%f\e8"
+		print -Pn "\e7\e[A\e[1G\e[`prompt_pure_string_length $prompt_pure_preprompt`C%f\e8"
+		# print -Pn "\e7\e[A\e[1G\e[`prompt_pure_string_length $prompt_pure_preprompt`C%F{cyan}⇣%f\e8"
 	} &!
 
 	# reset value since `preexec` isn't always triggered
